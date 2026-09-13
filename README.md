@@ -5,7 +5,9 @@ Real-time fraud detection using Exasol SQL, a FastAPI backend, a random transact
 FraudShield receives transactions through an API, stores them in Exasol, evaluates advanced fraud rules with SQL analytics, calculates risk scores, and displays live alerts. It includes customer and merchant risk profiles, alert drill-down, alert acknowledgement and resolution, automatic dashboard refresh, and webhook, Slack, and email notifications for high-risk transactions. Everything runs in Docker; the host only needs Docker and the Compose plugin.
 
 - [Deployment and run guide](DEPLOYMENT.md)
-- [FraudShield pitch deck](FraudShield_Pitch_Deck.pdf)
+- [FraudShield pitch deck](assets/FraudShield_Pitch_Deck.pdf)
+- [View Demo Video](assets/demo.mp4)
+- [View dashboard screenshots](#screenshots)
 
 ## Architecture
 
@@ -101,3 +103,10 @@ Database changes are managed with Alembic. The transaction table is defined in `
 Current migration chain: `0001_initial` -> `0002_alert_lifecycle`.
 
 Migration history is append-only. Generate a new revision with `docker compose run --rm api alembic revision -m "describe the change"`; never edit a revision that has already been applied.
+
+## Screenshots
+
+1. ![Dashboard overview](assets/01-20260913-190528.png)
+2. ![Risk analytics](assets/02-20260913-190655.png)
+3. ![User and merchant analytics](assets/03-20260913-190735.png)
+4. ![Alert drill-down](assets/04-20260913-190833.png)
