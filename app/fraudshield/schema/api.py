@@ -16,3 +16,8 @@ class TransactionCreate(BaseModel):
 class TransactionAccepted(BaseModel):
     txn_id: int
     status: str = "accepted"
+
+
+class AlertLifecycleUpdate(BaseModel):
+    status: str = Field(pattern="^(ACKNOWLEDGED|RESOLVED)$")
+    actor: str = Field(default="demo-operator", max_length=100)
