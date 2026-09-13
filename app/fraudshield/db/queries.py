@@ -59,14 +59,24 @@ def get_profiles() -> list[dict]:
 
 def update_alert(txn_id: int, lifecycle_status: str, actor: str) -> None:
     with ENGINE.begin() as connection:
-        connection.execute(text("""
-            MERGE INTO FRAUDSHIELD.FRAUD_ALERTS target
-            USING (SELECT :txn_id AS txn_id) source ON target.txn_id = source.txn_id
-            WHEN MATCHED THEN UPDATE SET lifecycle_status = :status, updated_at = CURRENT_TIMESTAMP, acknowledged_by = :actor,
-                resolved_at = CASE WHEN :status = 'RESOLVED' THEN CURRENT_TIMESTAMP ELSE resolved_at END
-            WHEN NOT MATCHED THEN INSERT (txn_id, lifecycle_status, updated_at, acknowledged_by, resolved_at)
-                VALUES (:txn_id, :status, CURRENT_TIMESTAMP, :actor, CASE WHEN :status = 'RESOLVED' THEN CURRENT_TIMESTAMP ELSE NULL END)
-        """), {"txn_id": txn_id, "status": lifecycle_status, "actor": actor})
+        connection.execute(
+            text("DELETE FROM FRAUDSHIELD.FRAUD_ALERTS WHERE TXN_ID = :txn_id"),
+            {"txn_id": txn_id},
+        )
+        connection.execute(
+            text("""
+                INSERT INTO FRAUDSHIELD.FRAUD_ALERTS
+                    (TXN_ID, LIFECYCLE_STATUS, UPDATED_AT, ACKNOWLEDGED_BY, RESOLVED_AT)
+                VALUES (
+                    :txn_id,
+                    :status,
+                    CURRENT_TIMESTAMP,
+                    :actor,
+                    CASE WHEN :status = 'RESOLVED' THEN CURRENT_TIMESTAMP ELSE NULL END
+                )
+            """),
+            {"txn_id": txn_id, "status": lifecycle_status, "actor": actor},
+        )
 
 
 def get_summary() -> dict:
