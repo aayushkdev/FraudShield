@@ -22,6 +22,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="hero"><h1>FraudShield</h1><p>Real-time transaction intelligence powered by Exasol SQL.</p></div>', unsafe_allow_html=True)
+st.caption(f"Last updated: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
 if st.button("Refresh data"):
     st.rerun()
@@ -113,7 +114,7 @@ if alerts.empty:
     st.success("No suspicious transactions detected.")
 else:
     st.dataframe(
-        alerts[["TXN_ID", "USER_ID", "AMOUNT", "CITY", "MERCHANT", "RISK_SCORE", "STATUS", "ALERT_REASONS", "TXN_TIME"]],
+        alerts[["TXN_ID", "USER_ID", "AMOUNT", "CITY", "MERCHANT", "RISK_SCORE", "STATUS", "LIFECYCLE_STATUS", "ALERT_REASONS", "TXN_TIME"]],
         use_container_width=True,
         hide_index=True,
         column_config={
@@ -126,17 +127,68 @@ else:
     alert_ids = alerts["TXN_ID"].astype(str).tolist()
     selected_id = st.selectbox("Select an alert", alert_ids, label_visibility="collapsed")
     selected_alert = alerts[alerts["TXN_ID"].astype(str) == selected_id].iloc[0]
+    selected_txn_id = int(selected_alert["TXN_ID"])
+    lifecycle = str(selected_alert["LIFECYCLE_STATUS"])
+    lifecycle_columns = st.columns(2)
+    if lifecycle == "NEW" and lifecycle_columns[0].button("Acknowledge alert"):
+        httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "ACKNOWLEDGED"}, timeout=10).raise_for_status()
+        st.rerun()
+    if lifecycle in {"NEW", "ACKNOWLEDGED"} and lifecycle_columns[1].button("Resolve alert"):
+        httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "RESOLVED"}, timeout=10).raise_for_status()
+        st.rerun()
     detail_columns = st.columns(4)
     detail_columns[0].metric("User", str(selected_alert["USER_ID"]))
     detail_columns[1].metric("Risk score", int(selected_alert["RISK_SCORE"]))
     detail_columns[2].metric("Rule triggers", selected_alert["ALERT_REASONS"] or "None")
     detail_columns[3].metric("Spend percentile", f"{float(selected_alert['USER_AMOUNT_PERCENTILE']) * 100:.0f}%")
+    user_history = data[data["USER_ID"] == selected_alert["USER_ID"]].copy()
+    detail_columns = st.columns(3)
+    detail_columns[0].metric("Average spend", f"₹{user_history['AMOUNT'].mean():,.0f}")
+    detail_columns[1].metric("Previous cities", user_history["CITY"].nunique())
+    detail_columns[2].metric("Merchant history", user_history["MERCHANT"].nunique())
     st.dataframe(
-        data[data["USER_ID"] == selected_alert["USER_ID"]][
+        user_history[
             ["TXN_TIME", "AMOUNT", "CITY", "MERCHANT", "RISK_SCORE", "STATUS", "ALERT_REASONS"]
         ].sort_values("TXN_TIME", ascending=False),
         use_container_width=True,
         hide_index=True,
     )
+
+st.divider()
+st.subheader("User risk profiles")
+try:
+    profiles_response = httpx.get(f"{BACKEND_URL}/api/v1/analytics/profiles", timeout=10)
+    profiles_response.raise_for_status()
+    profiles = pd.DataFrame(profiles_response.json())
+    st.dataframe(profiles, use_container_width=True, hide_index=True)
+except Exception as error:
+    st.warning(f"Profiles unavailable: {error}")
+
+st.divider()
+left, right = st.columns(2)
+with left:
+    st.subheader("Alerts by hour")
+    hourly = data.assign(hour=data["TXN_TIME"].dt.hour).groupby("hour", as_index=False).agg(
+        alerts=("STATUS", lambda values: (values != "SAFE").sum()),
+        transactions=("TXN_ID", "count"),
+    )
+    st.plotly_chart(px.bar(hourly, x="hour", y="alerts", labels={"hour": "Hour of day", "alerts": "Alerts"}), use_container_width=True)
+with right:
+    st.subheader("Weekday vs weekend")
+    weekday = data.assign(period=data["TXN_TIME"].dt.dayofweek.map(lambda day: "Weekend" if day >= 5 else "Weekday"))
+    weekday = weekday.groupby("period", as_index=False).agg(alerts=("STATUS", lambda values: (values != "SAFE").sum()), transactions=("TXN_ID", "count"))
+    weekday["alert_rate"] = weekday["alerts"] / weekday["transactions"] * 100
+    st.plotly_chart(px.bar(weekday, x="period", y="alert_rate", color="period", labels={"alert_rate": "Alert rate (%)"}), use_container_width=True)
+
+st.subheader("Merchant intelligence")
+merchant_detail = data.groupby("MERCHANT", as_index=False).agg(
+    transactions=("TXN_ID", "count"),
+    alerts=("STATUS", lambda values: (values != "SAFE").sum()),
+    new_merchant_events=("NEW_MERCHANT_SCORE", lambda values: (values > 0).sum()),
+    average_amount=("AMOUNT", "mean"),
+    average_risk=("RISK_SCORE", "mean"),
+)
+merchant_detail["alert_rate"] = merchant_detail["alerts"] / merchant_detail["transactions"] * 100
+st.dataframe(merchant_detail.sort_values("alert_rate", ascending=False), use_container_width=True, hide_index=True)
 
 st.caption("Refresh the page to pull the latest scores from Exasol.")
