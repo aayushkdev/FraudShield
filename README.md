@@ -1,8 +1,8 @@
 # FraudShield
 
-Real-time fraud detection using Exasol SQL, a Python transaction simulator, and a Streamlit dashboard.
+Real-time fraud detection using Exasol SQL, a FastAPI backend, a random transaction simulator, and a Streamlit operations dashboard.
 
-FraudShield receives transactions, stores them in Exasol, evaluates fraud rules in SQL, calculates risk scores, and displays live alerts. Everything runs in Docker; the host only needs Docker and the Compose plugin.
+FraudShield receives transactions through an API, stores them in Exasol, evaluates advanced fraud rules with SQL analytics, calculates risk scores, and displays live alerts. It includes customer and merchant risk profiles, alert drill-down, alert acknowledgement and resolution, automatic dashboard refresh, and webhook, Slack, and email notifications for high-risk transactions. Everything runs in Docker; the host only needs Docker and the Compose plugin.
 
 ## Architecture
 
