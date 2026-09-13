@@ -1,4 +1,4 @@
-sqlalchemy==2.0.36
+sqlalchemy==1.4.54
 sqlalchemy-exasol==5.2.0
 alembic==1.14.0
 fastapi==0.115.6
