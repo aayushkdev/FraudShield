@@ -4,6 +4,9 @@ Real-time fraud detection using Exasol SQL, a FastAPI backend, a random transact
 
 FraudShield receives transactions through an API, stores them in Exasol, evaluates advanced fraud rules with SQL analytics, calculates risk scores, and displays live alerts. It includes customer and merchant risk profiles, alert drill-down, alert acknowledgement and resolution, automatic dashboard refresh, and webhook, Slack, and email notifications for high-risk transactions. Everything runs in Docker; the host only needs Docker and the Compose plugin.
 
+- [Deployment and run guide](DEPLOYMENT.md)
+- [FraudShield pitch deck](FraudShield_Pitch_Deck.pdf)
+
 ## Architecture
 
 ```text

@@ -15,7 +15,7 @@ HOST, _, PORT = DSN.partition(":")
 
 ENGINE = create_engine(
     URL.create(
-        "exa+pyexasol",
+        "exa+websocket",
         username=USER,
         password=PASSWORD,
         host=HOST,
