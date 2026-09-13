@@ -41,6 +41,10 @@ The API is available at [http://localhost:8000/docs](http://localhost:8000/docs)
 
 The dashboard automatically refreshes every 10 seconds and includes city risk, alert velocity, rule contribution, merchant concentration, spend anomalies, and an alert drill-down with customer history.
 
+Alerts above a risk score of 60 can be sent to a webhook, Slack, and SMTP email by configuring the notification variables in `.env`.
+
+Alert lifecycle state is persisted in Exasol. Operators can acknowledge or resolve alerts from the dashboard, and user profiles expose transaction count, average amount, alert count, cities, and merchants.
+
 See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment, operations, shutdown, and troubleshooting instructions.
 
 ## Fraud scoring rules
@@ -88,4 +92,8 @@ Dashboard: http://localhost:8501
 
 The simulator interval can be changed in `docker-compose.yml` through `TXN_INTERVAL_SECONDS`.
 
-Database changes are managed with Alembic. The transaction table is defined in `app/fraudshield/models/transaction.py`, while Exasol analytics are defined in `app/fraudshield/schema/fraud_views.sql`. Add a new revision under `app/migrations/versions/` instead of modifying startup code; the simulator applies pending revisions with `alembic upgrade head`.
+Database changes are managed with Alembic. The transaction table is defined in `app/fraudshield/models/transaction.py`, while Exasol analytics are defined in `app/fraudshield/schema/fraud_views.sql`. The API applies pending revisions with `alembic upgrade head` during startup.
+
+Current migration chain: `0001_initial` -> `0002_alert_lifecycle`.
+
+Migration history is append-only. Generate a new revision with `docker compose run --rm api alembic revision -m "describe the change"`; never edit a revision that has already been applied.

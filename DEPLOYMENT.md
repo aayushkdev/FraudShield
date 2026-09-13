@@ -40,6 +40,9 @@ GET  /health
 POST /api/v1/transactions
 GET  /api/v1/analytics/scores
 GET  /api/v1/analytics/summary
+GET  /api/v1/analytics/profiles
+GET  /api/v1/transactions/{txn_id}
+PATCH /api/v1/alerts/{txn_id}
 ```
 
 The simulator publishes validated transaction payloads to the API. The API service owns ingestion and reads analytics from Exasol; the dashboard does not connect to the database directly.
@@ -93,6 +96,28 @@ docker compose run --rm api alembic upgrade head
 
 The API runs `alembic upgrade head` automatically during startup, so this command is normally only useful for deployment diagnostics.
 
+### Create a new migration
+
+Create a new revision for every schema change. Do not edit `0001_initial_fraud_analytics.py` or any migration that has already been applied:
+
+```bash
+docker compose run --rm api alembic revision -m "describe the schema change"
+```
+
+For SQLAlchemy model changes, request a generated starting point and review the file before applying it:
+
+```bash
+docker compose run --rm api alembic revision --autogenerate -m "add transaction attribute"
+```
+
+Edit only the newly generated file under `app/migrations/versions/`, add Exasol-specific SQL with `op.execute(...)` when needed, then apply it:
+
+```bash
+docker compose run --rm api alembic upgrade head
+```
+
+The migration chain is append-only: new revisions point to the previous revision through `down_revision`, and startup applies all pending revisions in order.
+
 Stop services while preserving Exasol data:
 
 ```bash
@@ -120,6 +145,28 @@ Simulator interval: 3 seconds
 ```
 
 Change `TXN_INTERVAL_SECONDS` in the `simulator` service to change the transaction generation rate.
+
+## Notifications
+
+When a transaction scores above 60, the API can send a notification through any configured channel. Copy `.env.example` to `.env` and set one or more of these values:
+
+```text
+ALERT_WEBHOOK_URL=https://example.com/webhook
+SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USER=alerts@example.com
+SMTP_PASSWORD=your-password
+SMTP_FROM=alerts@example.com
+SMTP_TLS=true
+ALERT_EMAIL_TO=fraud-team@example.com
+```
+
+Notification errors are logged and do not block transaction ingestion.
+
+## Alert lifecycle
+
+Every scored alert starts as `NEW`. From the dashboard, an operator can move it to `ACKNOWLEDGED` or `RESOLVED`. Lifecycle state is persisted in Exasol and survives dashboard refreshes.
 
 ## Troubleshooting
 
@@ -149,7 +196,7 @@ docker compose restart simulator dashboard
 
 ### Port already in use
 
-Stop the process using port `8501` or `8563`, or change the host-side port mapping in `docker-compose.yml`. Keep the internal database address as `exasol:8563`.
+Stop the process using port `8000`, `8501`, or `8563`, or change the host-side port mapping in `docker-compose.yml`. Keep the internal database address as `exasol:8563`.
 
 ## Key files
 
