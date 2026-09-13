@@ -18,7 +18,7 @@ def upgrade() -> None:
             RESOLVED_AT TIMESTAMP
         )
     """)
-    sql_file = __file__.rsplit("/migrations/", 1)[0] + "/fraudshield/schema/fraud_views.sql"
+    sql_file = __file__.rsplit("/migrations/", 1)[0] + "/fraudshield/schema/fraud_views_lifecycle.sql"
     with open(sql_file) as view_file:
         op.execute(view_file.read())
 

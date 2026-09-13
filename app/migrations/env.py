@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
+from alembic.ddl.impl import DefaultImpl
 
 from fraudshield.db.connection import ENGINE
 from fraudshield.models.base import Base
@@ -10,6 +11,10 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
+
+
+class ExasolImpl(DefaultImpl):
+    __dialect__ = "exasol"
 
 
 def run_migrations_offline():
@@ -25,10 +30,12 @@ def run_migrations_offline():
 
 def run_migrations_online():
     with ENGINE.connect() as connection:
+        connection.exec_driver_sql("CREATE SCHEMA IF NOT EXISTS FRAUDSHIELD")
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             version_table="FRAUDSHIELD_ALEMBIC_VERSION",
+            version_table_schema="FRAUDSHIELD",
         )
         with context.begin_transaction():
             context.run_migrations()

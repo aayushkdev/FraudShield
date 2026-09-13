@@ -29,6 +29,20 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  migrate:
+    build: ./app
+    container_name: fraudshield-migrate
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      EXASOL_DSN: exasol:8563
+      EXASOL_USER: sys
+      EXASOL_PASSWORD: exasol
+      EXASOL_CERTIFICATE_VALIDATION: ${EXASOL_CERTIFICATE_VALIDATION:-false}
+    depends_on:
+      exasol:
+        condition: service_healthy
+    restart: "no"
+
   api:
     build: ./app
     container_name: fraudshield-api
@@ -39,6 +53,7 @@ services:
       EXASOL_DSN: exasol:8563
       EXASOL_USER: sys
       EXASOL_PASSWORD: exasol
+      EXASOL_CERTIFICATE_VALIDATION: ${EXASOL_CERTIFICATE_VALIDATION:-false}
       ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
       SMTP_HOST: ${SMTP_HOST:-}
@@ -49,8 +64,8 @@ services:
       SMTP_TLS: ${SMTP_TLS:-true}
       ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
     depends_on:
-      exasol:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8000/health\")'"]
       interval: 10s

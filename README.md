@@ -13,11 +13,12 @@ FraudShield receives transactions through an API, stores them in Exasol, evaluat
 Transaction simulator -> FastAPI backend -> Exasol transactions -> fraud_scores view -> Streamlit dashboard
 ```
 
-The Compose stack contains four services:
+The Compose stack contains five services:
 
 | Service | Purpose |
 | --- | --- |
 | `exasol` | Database, transaction table, and fraud scoring view |
+| `migrate` | One-shot Alembic migration runner |
 | `api` | FastAPI ingestion and analytics endpoints |
 | `simulator` | Random transaction generation with probabilistic anomalies |
 | `dashboard` | KPIs, charts, and live alert table |

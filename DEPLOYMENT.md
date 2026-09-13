@@ -26,6 +26,7 @@ The stack contains:
 | Service | Purpose |
 | --- | --- |
 | `exasol` | Database, transaction storage, and SQL scoring view |
+| `migrate` | One-shot Alembic migration runner; exits after applying pending revisions |
 | `api` | FastAPI backend on port `8000` |
 | `simulator` | Random transaction generation with probabilistic anomalies |
 | `dashboard` | Streamlit dashboard on port `8501` |
@@ -94,7 +95,7 @@ Apply database migrations manually when needed:
 docker compose run --rm api alembic upgrade head
 ```
 
-The API runs `alembic upgrade head` automatically during startup, so this command is normally only useful for deployment diagnostics.
+The one-shot `migrate` container runs `alembic upgrade head` after Exasol becomes healthy and exits successfully. The API waits for that successful exit before starting.
 
 ### Create a new migration
 
@@ -140,6 +141,7 @@ Default values in `docker-compose.yml`:
 Exasol host inside Compose: exasol:8563
 Exasol user: sys
 Exasol password: exasol
+Exasol certificate validation: false for the local self-signed demo certificate
 Dashboard: http://localhost:8501
 Simulator interval: 3 seconds
 ```

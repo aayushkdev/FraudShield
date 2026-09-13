@@ -1,22 +1,13 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
 
 from fraudshield.api.routes import router
-from fraudshield.db import initialize_database, ping
-
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    initialize_database()
-    yield
+from fraudshield.db import ping
 
 
 app = FastAPI(
     title="FraudShield API",
     version="1.0.0",
     description="Transaction ingestion and Exasol-powered fraud analytics API.",
-    lifespan=lifespan,
 )
 app.include_router(router)
 

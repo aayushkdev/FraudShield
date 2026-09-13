@@ -7,17 +7,31 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 BACKEND_URL = os.getenv("BACKEND_URL", "http://api:8000")
+px.defaults.template = "plotly_dark"
+st.set_page_config(page_title="FraudShield", page_icon="FS", layout="wide")
 st_autorefresh(interval=10000, limit=None, key="fraudshield-refresh")
 
-st.set_page_config(page_title="FraudShield", page_icon="FS", layout="wide")
+NUMERIC_COLUMNS = [
+    "TXN_ID", "AMOUNT", "RISK_SCORE", "USER_AVERAGE_SPEND", "USER_SPEND_VOLATILITY",
+    "SPEND_Z_SCORE", "USER_AMOUNT_PERCENTILE", "TRANSACTIONS_LAST_MINUTE",
+    "SIX_TRANSACTION_WINDOW", "PRIOR_MERCHANT_USES", "PRIOR_CITY_COUNT",
+    "HIGH_AMOUNT_SCORE", "RAPID_SCORE", "IMPOSSIBLE_TRAVEL_SCORE", "NEW_MERCHANT_SCORE",
+]
 
 st.markdown("""
 <style>
-    .stApp { background: #f4f7f5; }
-    [data-testid="stMetric"] { background: white; border: 1px solid #d8e2dc; padding: 16px; border-radius: 8px; }
+    .stApp { background: #101820; color: #eef5f2; }
+    [data-testid="stHeader"] { background: #101820; }
+    [data-testid="stMetric"] { background: #17252f; border: 1px solid #2d4652; padding: 16px; border-radius: 8px; }
+    [data-testid="stMetricLabel"], [data-testid="stMetricValue"], [data-testid="stMetricDelta"] { color: #eef5f2; }
+    [data-testid="stDataFrame"] { border: 1px solid #2d4652; }
+    .stButton > button { background: #1e8f78; color: #ffffff; border: 0; }
+    .stButton > button:hover { background: #25ad91; color: #ffffff; }
+    .stSelectbox label, .stMarkdown, .stCaption, h1, h2, h3, p { color: #eef5f2 !important; }
     .hero { padding: 24px 0 12px; }
-    .hero h1 { color: #12372a; margin-bottom: 4px; }
-    .hero p { color: #60756b; font-size: 1.05rem; }
+    .hero h1 { color: #8ee3c5; margin-bottom: 4px; }
+    .hero p { color: #b6c9c4; font-size: 1.05rem; }
+    [data-baseweb="select"] > div { background: #17252f; color: #eef5f2; border-color: #2d4652; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,6 +45,10 @@ try:
     response = httpx.get(f"{BACKEND_URL}/api/v1/analytics/scores", params={"limit": 500}, timeout=10)
     response.raise_for_status()
     data = pd.DataFrame(response.json())
+    data.columns = [str(column).upper() for column in data.columns]
+    for column in NUMERIC_COLUMNS:
+        if column in data:
+            data[column] = pd.to_numeric(data[column], errors="coerce")
 except Exception as error:
     st.error(f"Waiting for the FraudShield API: {error}")
     st.stop()
@@ -131,11 +149,19 @@ else:
     lifecycle = str(selected_alert["LIFECYCLE_STATUS"])
     lifecycle_columns = st.columns(2)
     if lifecycle == "NEW" and lifecycle_columns[0].button("Acknowledge alert"):
-        httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "ACKNOWLEDGED"}, timeout=10).raise_for_status()
-        st.rerun()
+        try:
+            response = httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "ACKNOWLEDGED"}, timeout=10)
+            response.raise_for_status()
+            st.rerun()
+        except httpx.HTTPError as error:
+            st.error(f"Could not acknowledge alert: {error}")
     if lifecycle in {"NEW", "ACKNOWLEDGED"} and lifecycle_columns[1].button("Resolve alert"):
-        httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "RESOLVED"}, timeout=10).raise_for_status()
-        st.rerun()
+        try:
+            response = httpx.patch(f"{BACKEND_URL}/api/v1/alerts/{selected_txn_id}", json={"status": "RESOLVED"}, timeout=10)
+            response.raise_for_status()
+            st.rerun()
+        except httpx.HTTPError as error:
+            st.error(f"Could not resolve alert: {error}")
     detail_columns = st.columns(4)
     detail_columns[0].metric("User", str(selected_alert["USER_ID"]))
     detail_columns[1].metric("Risk score", int(selected_alert["RISK_SCORE"]))
@@ -160,6 +186,10 @@ try:
     profiles_response = httpx.get(f"{BACKEND_URL}/api/v1/analytics/profiles", timeout=10)
     profiles_response.raise_for_status()
     profiles = pd.DataFrame(profiles_response.json())
+    profiles.columns = [str(column).upper() for column in profiles.columns]
+    for column in ["TOTAL_TRANSACTIONS", "AVERAGE_AMOUNT", "RISK_SCORE", "ALERT_COUNT", "UNIQUE_CITIES", "UNIQUE_MERCHANTS"]:
+        if column in profiles:
+            profiles[column] = pd.to_numeric(profiles[column], errors="coerce")
     st.dataframe(profiles, use_container_width=True, hide_index=True)
 except Exception as error:
     st.warning(f"Profiles unavailable: {error}")

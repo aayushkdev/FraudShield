@@ -10,6 +10,7 @@ from sqlalchemy.engine import URL
 DSN = os.getenv("EXASOL_DSN", "localhost:8563")
 USER = os.getenv("EXASOL_USER", "sys")
 PASSWORD = os.getenv("EXASOL_PASSWORD", "exasol")
+CERTIFICATE_VALIDATION = os.getenv("EXASOL_CERTIFICATE_VALIDATION", "false").lower()
 ALEMBIC_INI = os.path.join(os.path.dirname(__file__), "..", "..", "alembic.ini")
 HOST, _, PORT = DSN.partition(":")
 
@@ -20,9 +21,15 @@ ENGINE = create_engine(
         password=PASSWORD,
         host=HOST,
         port=int(PORT or 8563),
+        query={
+            "SSLCertificate": (
+                "SSL_VERIFY_NONE" if CERTIFICATE_VALIDATION == "false" else "SSL_VERIFY_DEFAULT"
+            )
+        },
     ),
     pool_pre_ping=True,
 )
+ENGINE.dialect.postfetch_lastrowid = False
 
 
 def connect():

@@ -30,10 +30,12 @@ WITH ordered_transactions AS (
     SELECT s.*, high_amount_score + rapid_score + impossible_travel_score + new_merchant_score AS risk_score
     FROM scored s
 )
-SELECT txn_id, user_id, amount, city, merchant, txn_time, user_txn_number, user_average_spend,
-    user_spend_volatility, spend_z_score, user_amount_percentile, transactions_last_minute,
-    six_transaction_window, prior_merchant_uses, prior_city_count, high_amount_score, rapid_score,
-    impossible_travel_score, new_merchant_score, risk_score,
-    CASE WHEN risk_score >= 61 THEN 'FRAUD' WHEN risk_score >= 31 THEN 'REVIEW' ELSE 'SAFE' END AS status,
-    RTRIM(CASE WHEN high_amount_score > 0 THEN 'High amount; ' ELSE '' END || CASE WHEN rapid_score > 0 THEN 'Rapid activity; ' ELSE '' END || CASE WHEN impossible_travel_score > 0 THEN 'Impossible travel; ' ELSE '' END || CASE WHEN new_merchant_score > 0 THEN 'New merchant; ' ELSE '' END, '; ') AS alert_reasons
-FROM final_scores;
+SELECT final_scores.*,
+    CASE WHEN final_scores.risk_score >= 61 THEN 'FRAUD' WHEN final_scores.risk_score >= 31 THEN 'REVIEW' ELSE 'SAFE' END AS status,
+    RTRIM(CASE WHEN high_amount_score > 0 THEN 'High amount; ' ELSE '' END || CASE WHEN rapid_score > 0 THEN 'Rapid activity; ' ELSE '' END || CASE WHEN impossible_travel_score > 0 THEN 'Impossible travel; ' ELSE '' END || CASE WHEN new_merchant_score > 0 THEN 'New merchant; ' ELSE '' END, '; ') AS alert_reasons,
+    COALESCE(alerts.lifecycle_status, CASE WHEN risk_score >= 31 THEN 'NEW' ELSE 'NONE' END) AS lifecycle_status,
+    alerts.updated_at AS lifecycle_updated_at,
+    alerts.acknowledged_by,
+    alerts.resolved_at
+FROM final_scores
+LEFT JOIN FRAUDSHIELD.FRAUD_ALERTS alerts ON alerts.txn_id = final_scores.txn_id;
